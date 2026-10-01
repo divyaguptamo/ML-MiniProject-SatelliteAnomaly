@@ -6,3 +6,6 @@ venv/
 .env
 .DS_Store
 data/raw/*.zip
+data/raw/xray_monthly/
+data/raw/xray_daily.csv
+test.csv
