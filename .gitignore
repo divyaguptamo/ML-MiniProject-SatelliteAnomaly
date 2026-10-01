@@ -9,3 +9,10 @@ data/raw/*.zip
 data/raw/xray_monthly/
 data/raw/xray_daily.csv
 test.csv
+data/raw/anom5j.xls
+data/raw/satcat.csv
+data/raw/sunspot.csv
+data/raw/anomaly_documentation.txt
+data/raw/satcat.csv
+data/raw/sunspot.csv
+data/raw/anomaly_documentation.txt
