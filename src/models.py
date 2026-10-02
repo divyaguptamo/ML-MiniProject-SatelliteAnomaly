@@ -25,8 +25,11 @@ def kaplan_meier(times, max_t):
 class SurvivalNaiveBayes:
     # var_smoothing is OUR choice (the reference does not state one):
     # a fraction of each feature's overall variance added to every class variance.
-    def __init__(self, var_smoothing=1e-3):
+    def __init__(self, var_smoothing=1e-3, normalize_density=True):
         self.var_smoothing = var_smoothing
+        # The reference code omits the 1/sigma factor of the Gaussian density.
+        # normalize_density=False mimics that; True is the correct density.
+        self.normalize_density = normalize_density
 
     def fit(self, X, y):
         self.X = np.asarray(X, float)
@@ -36,9 +39,12 @@ class SurvivalNaiveBayes:
         self.eps = self.var_smoothing * self.X.var(axis=0) + 1e-30
         return self
 
-    @staticmethod
-    def _loglik(x, mu, var):
-        return -0.5 * np.sum(np.log(2 * np.pi * var) + (x - mu) ** 2 / var, axis=1)
+    def _loglik(self, x, mu, var):
+        quad = np.sum((x - mu) ** 2 / var, axis=1)
+        const = np.log(2 * np.pi) * x.shape[1]
+        if self.normalize_density:
+            const = const + np.sum(np.log(var))
+        return -0.5 * (const + quad)
 
     def predict(self, Xnew):
         Xnew = np.asarray(Xnew, float)
