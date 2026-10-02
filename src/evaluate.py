@@ -1,4 +1,8 @@
-"""10-fold CV of all models; metric = mean(|y_hat - y| / y), as in the reference."""
+"""10-fold CV of all models.
+
+Main metric (as in the reference): mean(|y_hat - y| / y)  -> "relative error".
+Supplementary metric: MAE in days, which does not blow up on very short TTEs.
+"""
 import os
 
 import numpy as np
@@ -15,7 +19,7 @@ from src.models import SurvivalNaiveBayes
 
 SEED = 42
 FEATURES = ["month", "sunspot", "xray_flux", "mass_kg", "perigee_km", "inclination_deg"]
-REPORTED = {  # (train, test) mean error from the reference, in %
+REPORTED = {  # (train, test) mean relative error from the reference, in %
     "Linear Regression": (455, 475),
     "SVR (gamma='auto', 2018 default)": (65, 190),
     "SVR (gamma='auto', X-ray x1e6)": (65, 190),
@@ -26,6 +30,10 @@ REPORTED = {  # (train, test) mean error from the reference, in %
 
 def rel_err(y, yhat):
     return float(np.mean(np.abs(yhat - y) / y))
+
+
+def mae(y, yhat):
+    return float(np.mean(np.abs(yhat - y)))
 
 
 def scale_xray(X):
@@ -60,32 +68,47 @@ def main():
     kf = KFold(n_splits=10, shuffle=True, random_state=SEED)
 
     rows = []
+    oof = pd.DataFrame({"true_tte": y})
+    print(f"{'model':34s} {'rel-err train/test':>20s}   {'MAE train/test (days)':>22s}")
     for name in models():
-        tr, te = [], []
+        tr_r, te_r, tr_m, te_m = [], [], [], []
+        pred = np.zeros(len(y))
         for train_idx, test_idx in kf.split(X):
             m = models()[name]           # fresh model each fold
             m.fit(X[train_idx], y[train_idx])
-            tr.append(rel_err(y[train_idx], m.predict(X[train_idx])))
-            te.append(rel_err(y[test_idx], m.predict(X[test_idx])))
+            p_tr, p_te = m.predict(X[train_idx]), m.predict(X[test_idx])
+            pred[test_idx] = p_te
+            tr_r.append(rel_err(y[train_idx], p_tr))
+            te_r.append(rel_err(y[test_idx], p_te))
+            tr_m.append(mae(y[train_idx], p_tr))
+            te_m.append(mae(y[test_idx], p_te))
+        oof[name] = pred
         rows.append({"model": name,
-                     "train_%": 100 * np.mean(tr), "test_%": 100 * np.mean(te),
-                     "test_std_%": 100 * np.std(te)})
-        print(f"{name:34s} train {rows[-1]['train_%']:7.1f}%   test {rows[-1]['test_%']:7.1f}%")
+                     "train_rel_%": 100 * np.mean(tr_r),
+                     "test_rel_%": 100 * np.mean(te_r),
+                     "test_rel_std_%": 100 * np.std(te_r),
+                     "train_mae_days": np.mean(tr_m),
+                     "test_mae_days": np.mean(te_m)})
+        r = rows[-1]
+        print(f"{name:34s} {r['train_rel_%']:8.1f}% /{r['test_rel_%']:7.1f}%   "
+              f"{r['train_mae_days']:9.1f} /{r['test_mae_days']:7.1f}")
 
     res = pd.DataFrame(rows)
     os.makedirs("results", exist_ok=True)
     res.to_csv("results/results.csv", index=False)
+    oof.to_csv("results/oof_predictions.csv", index=False)
 
-    lines = ["| Model | Reported train | Reported test | Ours train | Ours test |",
-             "|---|---|---|---|---|"]
+    lines = ["| Model | Reported train | Reported test | Ours train | Ours test | Ours test MAE (days) |",
+             "|---|---|---|---|---|---|"]
     for _, r in res.iterrows():
         rep = REPORTED.get(r["model"])
         rt = f"{rep[0]}%" if rep else "-"
         re_ = f"{rep[1]}%" if rep else "-"
-        lines.append(f"| {r['model']} | {rt} | {re_} | {r['train_%']:.0f}% | {r['test_%']:.0f}% |")
+        lines.append(f"| {r['model']} | {rt} | {re_} | {r['train_rel_%']:.0f}% | "
+                     f"{r['test_rel_%']:.0f}% | {r['test_mae_days']:.1f} |")
     with open("results/comparison_table.md", "w") as f:
         f.write("\n".join(lines) + "\n")
-    print("\nSaved results/results.csv and results/comparison_table.md")
+    print("\nSaved results/results.csv, results/oof_predictions.csv, results/comparison_table.md")
 
 
 if __name__ == "__main__":
