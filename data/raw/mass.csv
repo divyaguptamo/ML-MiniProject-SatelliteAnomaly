@@ -1,0 +1,12 @@
+bird,mass_kg,source
+goes 4,836,WMO OSCAR (mass at launch)
+goes 5,836,WMO OSCAR (mass at launch)
+goes 6,836,WMO OSCAR (mass at launch)
+meteosat 1,626,WMO OSCAR (mass at launch)
+meteosat 2,626,WMO OSCAR (mass at launch)
+marecs a,1060,Gunter's Space Page (MARECS series)
+noaa 11,1420,WMO OSCAR (mass at launch)
+gps 5113,759,Gunter's Space Page (GPS Navstar series)
+gps 5114,759,Gunter's Space Page (GPS Navstar series)
+gps 5118,759,Gunter's Space Page (GPS Navstar series)
+gps 9794,759,Gunter's Space Page (GPS Navstar series)
