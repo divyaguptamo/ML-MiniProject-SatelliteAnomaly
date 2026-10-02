@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import FunctionTransformer, StandardScaler
 from sklearn.svm import SVR
 
 from src.models import SurvivalNaiveBayes
@@ -18,21 +18,36 @@ FEATURES = ["month", "sunspot", "xray_flux", "mass_kg", "perigee_km", "inclinati
 REPORTED = {  # (train, test) mean error from the reference, in %
     "Linear Regression": (455, 475),
     "SVR (gamma='auto', 2018 default)": (65, 190),
+    "SVR (gamma='auto', X-ray x1e6)": (65, 190),
     "Naive Bayes": (100, 167),
+    "Naive Bayes (reference density)": (100, 167),
 }
+
 
 def rel_err(y, yhat):
     return float(np.mean(np.abs(yhat - y) / y))
+
+
+def scale_xray(X):
+    """Reference svm.py multiplies X-ray flux (column 2) by 1e6."""
+    X = np.array(X, dtype=float, copy=True)
+    X[:, 2] *= 1e6
+    return X
 
 
 def models():
     return {
         "Linear Regression": LinearRegression(),
         "Support Vector Regression": SVR(kernel="rbf", C=10, epsilon=0.1),
-	"SVR (gamma='auto', 2018 default)": SVR(kernel="rbf", C=10, epsilon=0.1, gamma="auto"),
+        "SVR (gamma='auto', 2018 default)": SVR(
+            kernel="rbf", C=10, epsilon=0.1, gamma="auto"),
+        "SVR (gamma='auto', X-ray x1e6)": make_pipeline(
+            FunctionTransformer(scale_xray),
+            SVR(kernel="rbf", C=10, epsilon=0.1, gamma="auto")),
         "SVR (standardized features)": make_pipeline(
             StandardScaler(), SVR(kernel="rbf", C=10, epsilon=0.1)),
         "Naive Bayes": SurvivalNaiveBayes(),
+        "Naive Bayes (reference density)": SurvivalNaiveBayes(normalize_density=False),
         "Random Forest (new model)": RandomForestRegressor(
             n_estimators=300, min_samples_leaf=3, random_state=SEED, n_jobs=-1),
         "Median baseline (sanity check)": DummyRegressor(strategy="median"),
