@@ -17,10 +17,9 @@ SEED = 42
 FEATURES = ["month", "sunspot", "xray_flux", "mass_kg", "perigee_km", "inclination_deg"]
 REPORTED = {  # (train, test) mean error from the reference, in %
     "Linear Regression": (455, 475),
-    "Support Vector Regression": (65, 190),
+    "SVR (gamma='auto', 2018 default)": (65, 190),
     "Naive Bayes": (100, 167),
 }
-
 
 def rel_err(y, yhat):
     return float(np.mean(np.abs(yhat - y) / y))
@@ -30,6 +29,7 @@ def models():
     return {
         "Linear Regression": LinearRegression(),
         "Support Vector Regression": SVR(kernel="rbf", C=10, epsilon=0.1),
+	"SVR (gamma='auto', 2018 default)": SVR(kernel="rbf", C=10, epsilon=0.1, gamma="auto"),
         "SVR (standardized features)": make_pipeline(
             StandardScaler(), SVR(kernel="rbf", C=10, epsilon=0.1)),
         "Naive Bayes": SurvivalNaiveBayes(),
